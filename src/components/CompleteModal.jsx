@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toDateKey, formatDisplayDate } from '../utils/dateUtils';
 import { playChantSound } from '../utils/soundUtils';
+import { generateSiddhiCertificate } from '../utils/certificateUtils';
 
 export default function CompleteModal({
   sankalpa,
@@ -12,6 +13,20 @@ export default function CompleteModal({
   onClose,
 }) {
   const [reflectionNote, setReflectionNote] = useState('');
+
+  const handleDownloadCertificate = () => {
+    generateSiddhiCertificate({
+      sankalpaName: sankalpa.name,
+      icon: sankalpa.icon || '🚩',
+      cycleNumber: sankalpa.cycleNumber || 1,
+      totalCount,
+      durationDays: sankalpa.durationDays,
+      startDate: timeline.startDateKey,
+      completedDate: toDateKey(),
+      longestStreak: streaks.longestStreak,
+      reflectionNote: reflectionNote.trim(),
+    });
+  };
 
   const handleSeal = (e) => {
     e.preventDefault();
@@ -99,6 +114,18 @@ export default function CompleteModal({
               <p className="text-[11px] italic text-amber-300/90 font-serif">
                 &ldquo;Sankalpam Siddhirastu — May your dedicated tapasya bestow lasting clarity, peace, and auspicious blessings.&rdquo;
               </p>
+            </div>
+
+            {/* Download Certificate Button */}
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={handleDownloadCertificate}
+                className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-xl transition flex items-center justify-center gap-2 shadow hover:border-amber-400"
+              >
+                <span>📸</span>
+                <span>Download Auspicious Certificate (.png)</span>
+              </button>
             </div>
           </div>
 

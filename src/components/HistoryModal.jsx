@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatDisplayDate } from '../utils/dateUtils';
+import { generateSiddhiCertificate } from '../utils/certificateUtils';
 
 export default function HistoryModal({
   archivedSankalpas,
@@ -11,6 +12,20 @@ export default function HistoryModal({
 
   const toggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const handleDownload = (item) => {
+    generateSiddhiCertificate({
+      sankalpaName: item.name,
+      icon: item.icon || '🚩',
+      cycleNumber: item.cycleNumber || 1,
+      totalCount: item.totalCompletedCount || item.sessions?.length || 0,
+      durationDays: item.durationDays,
+      startDate: item.timelineStartDate,
+      completedDate: item.completedDate,
+      longestStreak: item.longestStreak || 0,
+      reflectionNote: item.reflectionNote || '',
+    });
   };
 
   return (
@@ -80,6 +95,17 @@ export default function HistoryModal({
 
                     <div className="flex items-center gap-2">
                       <button
+                        type="button"
+                        onClick={() => handleDownload(item)}
+                        className="text-xs px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-amber-300 border border-zinc-700/80 font-medium rounded-lg transition active:scale-95 flex items-center gap-1"
+                        title="Download Certificate PNG"
+                      >
+                        <span>📸</span>
+                        <span className="hidden sm:inline">Certificate</span>
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => onStartNewCycle(item)}
                         className="text-xs px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold rounded-lg transition active:scale-95 shadow flex items-center gap-1.5"
                         title="Start next cycle of this vow"

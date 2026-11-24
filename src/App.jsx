@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import StatsCards from './components/StatsCards';
+import AnalyticsCard from './components/AnalyticsCard';
 import CalendarCard from './components/CalendarCard';
 import ZenModeModal from './components/ZenModeModal';
 import BackupModal from './components/BackupModal';
@@ -295,6 +296,13 @@ export default function App() {
           onDeleteSession={handleDeleteSession}
           canUndo={sessions.length > 0}
           lastSessionInfo={lastSessionInfo}
+        />
+
+        {/* Sadhana Rhythm & Timing Analytics */}
+        <AnalyticsCard
+          sessions={sessions}
+          timeline={timeline}
+          totalCount={totalCount}
         />
 
         {/* Unified Calendar Card */}
