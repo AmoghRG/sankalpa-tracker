@@ -41,15 +41,39 @@ export const PRESETS = [
   },
 ];
 
+export function getTimeOfDayTag(date = new Date()) {
+  const hour = date.getHours();
+  if (hour >= 4 && hour < 12) {
+    return { id: 'morning', label: 'Morning', icon: '🌅' };
+  } else if (hour >= 12 && hour < 17) {
+    return { id: 'afternoon', label: 'Afternoon', icon: '☀️' };
+  } else if (hour >= 17 && hour < 21) {
+    return { id: 'sandhya', label: 'Sandhya', icon: '🪔' };
+  } else {
+    return { id: 'night', label: 'Ratri / Night', icon: '🌙' };
+  }
+}
+
 // Initialize and migrate data from legacy localStorage if present
 export function loadInitialData() {
   try {
+    let archivedSankalpas = [];
+    const rawArchived = localStorage.getItem('archived_sankalpas');
+    if (rawArchived) {
+      try {
+        const parsed = JSON.parse(rawArchived);
+        if (Array.isArray(parsed)) archivedSankalpas = parsed;
+      } catch (e) {
+        console.error('Failed to parse archived sankalpas', e);
+      }
+    }
+
     const rawSankalpas = localStorage.getItem('sankalpas_v2');
     if (rawSankalpas) {
       const parsed = JSON.parse(rawSankalpas);
       if (Array.isArray(parsed) && parsed.length > 0) {
         const activeId = localStorage.getItem('active_sankalpa_id') || parsed[0].id;
-        return { sankalpas: parsed, activeId };
+        return { sankalpas: parsed, activeId, archivedSankalpas };
       }
     }
 
@@ -70,6 +94,7 @@ export function loadInitialData() {
             date: normalizeDateKey(s.date),
             time: s.time || '12:00',
             count: Number(s.count) || 1,
+            tag: s.tag || getTimeOfDayTag().label,
             timestamp: s.timestamp || Date.now(),
           }));
         }
@@ -86,6 +111,7 @@ export function loadInitialData() {
       durationDays: legacyDuration,
       startDate: legacyStartDate,
       sessions: legacySessions,
+      cycleNumber: 1,
       createdAt: Date.now(),
     };
 
@@ -93,7 +119,7 @@ export function loadInitialData() {
     localStorage.setItem('sankalpas_v2', JSON.stringify(initialList));
     localStorage.setItem('active_sankalpa_id', initialSankalpa.id);
 
-    return { sankalpas: initialList, activeId: initialSankalpa.id };
+    return { sankalpas: initialList, activeId: initialSankalpa.id, archivedSankalpas };
   } catch (err) {
     console.error('Failed to load initial data', err);
     const fallback = {
@@ -104,31 +130,34 @@ export function loadInitialData() {
       durationDays: 40,
       startDate: toDateKey(),
       sessions: [],
+      cycleNumber: 1,
       createdAt: Date.now(),
     };
-    return { sankalpas: [fallback], activeId: fallback.id };
+    return { sankalpas: [fallback], activeId: fallback.id, archivedSankalpas: [] };
   }
 }
 
-// Save sankalpas array to localStorage
-export function saveSankalpas(sankalpas, activeId) {
+// Save sankalpas array and archives to localStorage
+export function saveSankalpas(sankalpas, activeId, archivedSankalpas = []) {
   try {
     localStorage.setItem('sankalpas_v2', JSON.stringify(sankalpas));
     if (activeId) {
       localStorage.setItem('active_sankalpa_id', activeId);
     }
+    localStorage.setItem('archived_sankalpas', JSON.stringify(archivedSankalpas));
   } catch (e) {
     console.error('Failed to save to localStorage', e);
   }
 }
 
 // Export all tracker data as JSON download
-export function exportDataAsJSON(sankalpas) {
+export function exportDataAsJSON(sankalpas, archivedSankalpas = []) {
   const exportPayload = {
     app: 'Sankalpa Tracker',
-    version: '2.0',
+    version: '2.1',
     exportedAt: new Date().toISOString(),
     sankalpas,
+    archivedSankalpas,
   };
 
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
@@ -147,7 +176,10 @@ export function parseImportData(jsonString) {
     if (!data || !Array.isArray(data.sankalpas)) {
       throw new Error('Invalid format: missing sankalpas array');
     }
-    return data.sankalpas;
+    return {
+      sankalpas: data.sankalpas,
+      archivedSankalpas: Array.isArray(data.archivedSankalpas) ? data.archivedSankalpas : [],
+    };
   } catch (err) {
     throw new Error('Invalid JSON file format: ' + err.message, { cause: err });
   }

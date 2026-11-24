@@ -208,7 +208,14 @@ export default function StatsCards({
                   key={session.id}
                   className="flex items-center justify-between text-xs py-1 px-2 rounded bg-zinc-800/60 hover:bg-zinc-800 transition"
                 >
-                  <span className="text-zinc-300 font-mono">{session.time}</span>
+                  <div className="flex items-center gap-1.5 font-mono text-zinc-300">
+                    <span>{session.time}</span>
+                    {session.tag && (
+                      <span className="text-[10px] text-zinc-400 font-sans">
+                        • {session.tag}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="text-amber-400 font-medium">
                       +{session.count || 1}

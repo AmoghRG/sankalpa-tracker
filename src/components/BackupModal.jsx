@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { exportDataAsJSON, parseImportData } from '../utils/storageUtils';
 
-export default function BackupModal({ sankalpas, onImportSankalpas, onClose }) {
+export default function BackupModal({ sankalpas, archivedSankalpas = [], onImportSankalpas, onClose }) {
   const [importStatus, setImportStatus] = useState(null);
 
   const handleExport = () => {
-    exportDataAsJSON(sankalpas);
+    exportDataAsJSON(sankalpas, archivedSankalpas);
   };
 
   const handleFileUpload = (e) => {
@@ -19,7 +19,10 @@ export default function BackupModal({ sankalpas, onImportSankalpas, onClose }) {
         if (typeof content === 'string') {
           const imported = parseImportData(content);
           onImportSankalpas(imported);
-          setImportStatus({ success: true, message: `Successfully restored ${imported.length} Sankalpa(s)!` });
+          setImportStatus({
+            success: true,
+            message: `Successfully restored ${imported.sankalpas.length} active and ${imported.archivedSankalpas.length} archived Sankalpa(s)!`,
+          });
         }
       } catch (err) {
         setImportStatus({ success: false, message: err.message });

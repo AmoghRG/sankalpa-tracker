@@ -4,6 +4,8 @@ import StatsCards from './components/StatsCards';
 import CalendarCard from './components/CalendarCard';
 import ZenModeModal from './components/ZenModeModal';
 import BackupModal from './components/BackupModal';
+import CompleteModal from './components/CompleteModal';
+import HistoryModal from './components/HistoryModal';
 import {
   toDateKey,
   calculateSankalpaTimeline,
@@ -11,11 +13,12 @@ import {
   calculatePace,
 } from './utils/dateUtils';
 import { playChantSound, triggerHaptic } from './utils/soundUtils';
-import { loadInitialData, saveSankalpas } from './utils/storageUtils';
+import { loadInitialData, saveSankalpas, getTimeOfDayTag } from './utils/storageUtils';
 
 function createSession(amount, dateKey, customTime) {
   const timestamp = Date.now();
   const randomSuffix = Math.random().toString(36).substring(2, 7);
+  const tagInfo = getTimeOfDayTag(new Date(timestamp));
   return {
     id: `session_${timestamp}_${randomSuffix}`,
     date: dateKey,
@@ -23,6 +26,7 @@ function createSession(amount, dateKey, customTime) {
       customTime ||
       new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     count: amount,
+    tag: tagInfo.label,
     timestamp,
   };
 }
@@ -36,15 +40,17 @@ export default function App() {
 
   const [isZenOpen, setIsZenOpen] = useState(false);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isCompleteOpen, setIsCompleteOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  const { sankalpas, activeId } = data;
+  const { sankalpas, activeId, archivedSankalpas = [] } = data;
 
-  // Persist to localStorage whenever sankalpas or activeId changes
+  // Persist to localStorage whenever data changes
   useEffect(() => {
     if (sankalpas.length > 0) {
-      saveSankalpas(sankalpas, activeId);
+      saveSankalpas(sankalpas, activeId, archivedSankalpas);
     }
-  }, [sankalpas, activeId]);
+  }, [sankalpas, activeId, archivedSankalpas]);
 
   // Persist sound setting
   useEffect(() => {
@@ -60,6 +66,7 @@ export default function App() {
     durationDays: 40,
     startDate: toDateKey(),
     sessions: [],
+    cycleNumber: 1,
   };
 
   const sessions = activeSankalpa.sessions || [];
@@ -121,6 +128,7 @@ export default function App() {
   // Create new Sankalpa
   const handleCreateSankalpa = (newSankalpa) => {
     setData((prev) => ({
+      ...prev,
       sankalpas: [...prev.sankalpas, newSankalpa],
       activeId: newSankalpa.id,
     }));
@@ -131,17 +139,89 @@ export default function App() {
     setData((prev) => {
       const remainingList = prev.sankalpas.filter((s) => s.id !== idToDelete);
       return {
+        ...prev,
         sankalpas: remainingList,
         activeId: remainingList.length > 0 ? remainingList[0].id : null,
       };
     });
   };
 
+  // Archive completed Sankalpa
+  const handleConfirmArchive = (archivedRecord) => {
+    setData((prev) => {
+      const newArchived = [archivedRecord, ...(prev.archivedSankalpas || [])];
+      const remainingList = prev.sankalpas.filter((s) => s.id !== activeSankalpa.id);
+
+      let updatedList = remainingList;
+      let nextId;
+
+      if (remainingList.length > 0) {
+        nextId = remainingList[0].id;
+      } else {
+        // If it was the only one, create next cycle automatically
+        const nextCycle = {
+          id: `sankalpa_${Date.now()}`,
+          name: activeSankalpa.name,
+          icon: activeSankalpa.icon || '🚩',
+          goalCount: activeSankalpa.goalCount,
+          durationDays: activeSankalpa.durationDays,
+          startDate: toDateKey(),
+          sessions: [],
+          cycleNumber: (activeSankalpa.cycleNumber || 1) + 1,
+          createdAt: Date.now(),
+        };
+        updatedList = [nextCycle];
+        nextId = nextCycle.id;
+      }
+
+      return {
+        sankalpas: updatedList,
+        activeId: nextId,
+        archivedSankalpas: newArchived,
+      };
+    });
+
+    setIsCompleteOpen(false);
+    setIsHistoryOpen(true);
+  };
+
+  // Start new cycle from an archived record
+  const handleStartNewCycle = (archivedItem) => {
+    const nextCycle = {
+      id: `sankalpa_${Date.now()}`,
+      name: archivedItem.name,
+      icon: archivedItem.icon || '🚩',
+      goalCount: archivedItem.goalCount,
+      durationDays: archivedItem.durationDays,
+      startDate: toDateKey(),
+      sessions: [],
+      cycleNumber: (archivedItem.cycleNumber || 1) + 1,
+      createdAt: Date.now(),
+    };
+
+    setData((prev) => ({
+      ...prev,
+      sankalpas: [...prev.sankalpas, nextCycle],
+      activeId: nextCycle.id,
+    }));
+
+    setIsHistoryOpen(false);
+  };
+
+  // Delete archived record
+  const handleDeleteArchived = (archivedId) => {
+    setData((prev) => ({
+      ...prev,
+      archivedSankalpas: (prev.archivedSankalpas || []).filter((a) => a.id !== archivedId),
+    }));
+  };
+
   // Import Sankalpas from JSON
   const handleImportSankalpas = (imported) => {
     setData({
-      sankalpas: imported,
-      activeId: imported.length > 0 ? imported[0].id : null,
+      sankalpas: imported.sankalpas,
+      archivedSankalpas: imported.archivedSankalpas || [],
+      activeId: imported.sankalpas.length > 0 ? imported.sankalpas[0].id : null,
     });
   };
 
@@ -161,6 +241,9 @@ export default function App() {
           timeline={timeline}
           soundEnabled={soundEnabled}
           setSoundEnabled={setSoundEnabled}
+          archivedCount={archivedSankalpas.length}
+          onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenComplete={() => setIsCompleteOpen(true)}
           onUpdateSankalpa={updateCurrentSankalpa}
           onSelectSankalpa={(id) => setData((prev) => ({ ...prev, activeId: id }))}
           onCreateSankalpa={handleCreateSankalpa}
@@ -169,17 +252,29 @@ export default function App() {
           onOpenBackup={() => setIsBackupOpen(true)}
         />
 
-        {/* Goal Achieved Special Banner */}
+        {/* Goal Achieved / Completion Banner */}
         {totalCount >= goalCount && (
-          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-600/20 via-emerald-600/20 to-amber-600/20 border border-amber-500/40 text-center animate-fade-in shadow-lg">
-            <span className="text-2xl">🚩 🪔 🕉️</span>
-            <h2 className="text-xl font-extrabold text-amber-200 mt-1">
-              Sankalpa Siddhi Accomplished!
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-300 mt-0.5">
-              You have completed {totalCount} of {goalCount} {activeSankalpa.name} recitations.
-              May your dedicated tapasya bring deep peace, clarity, and strength.
-            </p>
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-amber-600/25 via-emerald-600/20 to-amber-600/25 border border-amber-500/50 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in shadow-xl">
+            <div className="text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <span className="text-2xl">🚩 🪔</span>
+                <h2 className="text-lg font-extrabold text-amber-200">
+                  Sankalpa Siddhi Accomplished!
+                </h2>
+              </div>
+              <p className="text-xs text-zinc-300 mt-1">
+                You have fulfilled {totalCount} of {goalCount} {activeSankalpa.name} recitations.
+                Seal this vow into your sacred history to record your tapasya.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setIsCompleteOpen(true)}
+              className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-black text-xs rounded-xl shadow-lg transition active:scale-95 flex items-center gap-2 whitespace-nowrap"
+            >
+              <span>📜</span>
+              <span>Seal & Move to History</span>
+            </button>
           </div>
         )}
 
@@ -219,11 +314,41 @@ export default function App() {
             <span className="text-zinc-400 font-medium">Sankalpa Tracker</span>
             <span>• Tapasya & Sadhana Journal</span>
           </div>
-          <div>
-            Data stays 100% private in your browser.
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsHistoryOpen(true)}
+              className="text-amber-400/90 hover:underline"
+            >
+              Past Sankalpas ({archivedSankalpas.length})
+            </button>
+            <span>•</span>
+            <span>Data stays 100% private in your browser.</span>
           </div>
         </footer>
       </div>
+
+      {/* Complete & Seal Sankalpa Modal */}
+      {isCompleteOpen && (
+        <CompleteModal
+          sankalpa={activeSankalpa}
+          totalCount={totalCount}
+          timeline={timeline}
+          streaks={streaks}
+          soundEnabled={soundEnabled}
+          onConfirmArchive={handleConfirmArchive}
+          onClose={() => setIsCompleteOpen(false)}
+        />
+      )}
+
+      {/* History & Past Sankalpas Modal */}
+      {isHistoryOpen && (
+        <HistoryModal
+          archivedSankalpas={archivedSankalpas}
+          onStartNewCycle={handleStartNewCycle}
+          onDeleteArchived={handleDeleteArchived}
+          onClose={() => setIsHistoryOpen(false)}
+        />
+      )}
 
       {/* Zen Japa Meditation Mode */}
       {isZenOpen && (
@@ -240,6 +365,7 @@ export default function App() {
       {isBackupOpen && (
         <BackupModal
           sankalpas={sankalpas}
+          archivedSankalpas={archivedSankalpas}
           onImportSankalpas={handleImportSankalpas}
           onClose={() => setIsBackupOpen(false)}
         />

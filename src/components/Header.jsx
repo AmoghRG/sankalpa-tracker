@@ -9,6 +9,9 @@ export default function Header({
   timeline,
   soundEnabled,
   setSoundEnabled,
+  archivedCount = 0,
+  onOpenHistory,
+  onOpenComplete,
   onUpdateSankalpa,
   onSelectSankalpa,
   onCreateSankalpa,
@@ -105,6 +108,21 @@ export default function Header({
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* History Button */}
+          <button
+            onClick={onOpenHistory}
+            className="flex items-center gap-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg font-medium transition shadow-sm"
+            title="View Past Completed Sankalpas"
+          >
+            <span>📜</span>
+            <span className="hidden sm:inline">History</span>
+            {archivedCount > 0 && (
+              <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded text-[10px] font-mono">
+                {archivedCount}
+              </span>
+            )}
+          </button>
+
           {/* Zen Chanting Mode */}
           <button
             onClick={onOpenZenMode}
@@ -165,9 +183,16 @@ export default function Header({
               {sankalpa.icon || '🚩'}
             </span>
             <div>
-              <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                {sankalpa.name}
-              </h1>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-white">
+                  {sankalpa.name}
+                </h1>
+                {sankalpa.cycleNumber && (
+                  <span className="text-xs px-2.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full font-mono">
+                    Cycle #{sankalpa.cycleNumber}
+                  </span>
+                )}
+              </div>
               <p className="text-zinc-400 text-sm mt-0.5">
                 Vow of {sankalpa.goalCount} recitations across {sankalpa.durationDays} days
               </p>
@@ -228,19 +253,31 @@ export default function Header({
             <h3 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
               <span>⚙️</span> Edit Sankalpa Settings
             </h3>
-            {allSankalpas.length > 1 && (
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm(`Are you sure you want to delete "${sankalpa.name}"?`)) {
-                    onDeleteSankalpa(sankalpa.id);
-                  }
+                  setEditing(false);
+                  onOpenComplete();
                 }}
-                className="text-xs text-red-400 hover:text-red-300 hover:underline"
+                className="text-xs text-amber-400 hover:text-amber-300 hover:underline"
               >
-                Delete This Sankalpa
+                Seal & Archive Vow 📜
               </button>
-            )}
+              {allSankalpas.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to delete "${sankalpa.name}"?`)) {
+                      onDeleteSankalpa(sankalpa.id);
+                    }
+                  }}
+                  className="text-xs text-red-400 hover:text-red-300 hover:underline"
+                >
+                  Delete This Sankalpa
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Quick Presets */}
