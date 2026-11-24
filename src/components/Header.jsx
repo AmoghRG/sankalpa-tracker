@@ -30,11 +30,31 @@ export default function Header({
   const [startDate, setStartDate] = useState(sankalpa.startDate || '');
 
   // New Sankalpa form states
-  const [newName, setNewName] = useState('');
-  const [newIcon, setNewIcon] = useState('🚩');
-  const [newGoal, setNewGoal] = useState(100);
-  const [newDuration, setNewDuration] = useState(40);
+  const [selectedPresetId, setSelectedPresetId] = useState('hanuman_chalisa');
+  const [isCustomPreset, setIsCustomPreset] = useState(false);
+  const [newName, setNewName] = useState(() => PRESETS[0].name);
+  const [newIcon, setNewIcon] = useState(() => PRESETS[0].icon);
+  const [newGoal, setNewGoal] = useState(() => PRESETS[0].goalCount);
+  const [newDuration, setNewDuration] = useState(() => PRESETS[0].durationDays);
   const [newStart, setNewStart] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const selectPresetForNew = (preset) => {
+    setSelectedPresetId(preset.id);
+    setIsCustomPreset(false);
+    setNewName(preset.name);
+    setNewIcon(preset.icon);
+    setNewGoal(preset.goalCount);
+    setNewDuration(preset.durationDays);
+  };
+
+  const selectCustomForNew = () => {
+    setSelectedPresetId('custom');
+    setIsCustomPreset(true);
+    setNewName('');
+    setNewIcon('📿');
+    setNewGoal(100);
+    setNewDuration(40);
+  };
 
   const applyPreset = (preset) => {
     setName(preset.name);
@@ -387,53 +407,160 @@ export default function Header({
 
       {/* Create New Sankalpa Modal */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in text-white overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-7 max-w-2xl w-full shadow-2xl my-8">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>🚩</span> Create New Sankalpa
-              </h3>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <span>🚩</span> Start a New Sankalpa
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Select a traditional sadhana preset or create your own custom vow
+                </p>
+              </div>
               <button
                 onClick={() => setShowNewModal(false)}
-                className="text-zinc-500 hover:text-white text-sm"
+                className="text-zinc-500 hover:text-white text-base p-1"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateNew} className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-zinc-400 block mb-1">Sankalpa Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Shiva Panchakshara Stotra"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  required
-                  autoFocus
-                  className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
-                />
-              </div>
+            {/* Standard Options Grid */}
+            <div className="mb-5">
+              <label className="text-xs font-semibold text-zinc-300 block mb-2 uppercase tracking-wider">
+                1. Select Sadhana or Custom
+              </label>
 
-              <div>
-                <label className="text-xs font-medium text-zinc-400 block mb-1">Choose Icon</label>
-                <div className="flex gap-1.5 bg-zinc-950 border border-zinc-800 p-1.5 rounded-lg overflow-x-auto">
-                  {ICONS.map((ic) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                {PRESETS.map((preset) => {
+                  const isSelected = selectedPresetId === preset.id && !isCustomPreset;
+                  return (
                     <button
-                      key={ic}
+                      key={preset.id}
                       type="button"
-                      onClick={() => setNewIcon(ic)}
-                      className={`px-2 py-1 rounded text-sm transition ${
-                        newIcon === ic ? 'bg-amber-500/30 border border-amber-500/50' : 'hover:bg-zinc-800'
+                      onClick={() => selectPresetForNew(preset)}
+                      className={`p-3 rounded-xl border text-left transition relative cursor-pointer ${
+                        isSelected
+                          ? 'bg-amber-500/15 border-amber-400 ring-1 ring-amber-400/50 shadow-md'
+                          : 'bg-zinc-950/70 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900'
                       }`}
                     >
-                      {ic}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl p-1 bg-zinc-900 rounded-lg border border-zinc-800">
+                            {preset.icon}
+                          </span>
+                          <div>
+                            <h4 className="text-xs font-bold text-white leading-tight">
+                              {preset.name}
+                            </h4>
+                            <span className="text-[10px] text-amber-300/90 font-mono">
+                              {preset.goalCount} chants • {preset.durationDays} days
+                            </span>
+                          </div>
+                        </div>
+
+                        {preset.badge && (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-zinc-800 text-zinc-400 border border-zinc-700/60 rounded font-medium whitespace-nowrap">
+                            {preset.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-zinc-400 mt-1.5 line-clamp-1">
+                        {preset.description}
+                      </p>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
+
+                {/* Option: Enter your own custom Sankalpa */}
+                <button
+                  type="button"
+                  onClick={selectCustomForNew}
+                  className={`p-3 rounded-xl border text-left transition relative cursor-pointer ${
+                    isCustomPreset
+                      ? 'bg-amber-500/15 border-amber-400 ring-1 ring-amber-400/50 shadow-md'
+                      : 'bg-zinc-950/70 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl p-1 bg-zinc-900 rounded-lg border border-zinc-800">
+                        ✨
+                      </span>
+                      <div>
+                        <h4 className="text-xs font-bold text-amber-200 leading-tight">
+                          Enter Your Own (Custom)
+                        </h4>
+                        <span className="text-[10px] text-zinc-400 font-mono">
+                          Define custom counts & days
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded font-medium">
+                      Custom
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-zinc-400 mt-1.5">
+                    Personal mantra, stotra, meditation, or discipline
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Step 2: Configure & Launch */}
+            <form onSubmit={handleCreateNew} className="bg-zinc-950/90 border border-zinc-800/90 p-4 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+                <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+                  2. Review & Start
+                </span>
+                <span className="text-xs text-amber-400 font-medium flex items-center gap-1">
+                  <span>{newIcon}</span>
+                  <span>{newName || 'Custom Sankalpa'}</span>
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* If Custom mode: let user type name and choose icon */}
+              {isCustomPreset && (
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="text-xs font-medium text-zinc-300 block mb-1">
+                      Enter Sankalpa Name <span className="text-amber-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Shiva Tandava Stotra, Daily Pranayama, Gita Chapter 12..."
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      required
+                      autoFocus
+                      className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none placeholder:text-zinc-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-zinc-300 block mb-1">Choose Sacred Icon</label>
+                    <div className="flex gap-1.5 bg-zinc-900 border border-zinc-800 p-1.5 rounded-xl overflow-x-auto">
+                      {ICONS.map((ic) => (
+                        <button
+                          key={ic}
+                          type="button"
+                          onClick={() => setNewIcon(ic)}
+                          className={`px-2.5 py-1 rounded-lg text-sm transition ${
+                            newIcon === ic ? 'bg-amber-500/30 border border-amber-500/50' : 'hover:bg-zinc-800'
+                          }`}
+                        >
+                          {ic}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Goal count, duration, and start date fields (always editable!) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-medium text-zinc-400 block mb-1">Goal Count</label>
                   <input
@@ -441,9 +568,11 @@ export default function Header({
                     min="1"
                     value={newGoal}
                     onChange={(e) => setNewGoal(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                    required
+                    className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-medium text-zinc-400 block mb-1">Duration (Days)</label>
                   <input
@@ -451,34 +580,37 @@ export default function Header({
                     min="1"
                     value={newDuration}
                     onChange={(e) => setNewDuration(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                    required
+                    className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-zinc-400 block mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={newStart}
+                    onChange={(e) => setNewStart(e.target.value)}
+                    required
+                    className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-zinc-400 block mb-1">Start Date</label>
-                <input
-                  type="date"
-                  value={newStart}
-                  onChange={(e) => setNewStart(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-3">
+              <div className="pt-2 flex items-center justify-between gap-3 border-t border-zinc-800/80">
                 <button
                   type="button"
                   onClick={() => setShowNewModal(false)}
-                  className="px-4 py-2 bg-zinc-800 text-zinc-300 text-xs rounded-lg hover:bg-zinc-700 transition"
+                  className="px-4 py-2 bg-zinc-800 text-zinc-300 text-xs rounded-xl hover:bg-zinc-700 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-amber-500 text-zinc-950 font-semibold text-xs rounded-lg hover:bg-amber-400 transition"
+                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-xs rounded-xl transition shadow-lg active:scale-95 flex items-center gap-1.5"
                 >
-                  Start Sankalpa
+                  <span>🚀</span>
+                  <span>Start {newName ? `"${newName}"` : 'Sankalpa'}</span>
                 </button>
               </div>
             </form>
